@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9B9D89212E0BB5AB00D98C13 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 9B9D89202E0BB5AB00D98C13 /* AppAuth */; };
+		9B9D89232E0BB5AB00D98C13 /* AppAuthCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9B9D89222E0BB5AB00D98C13 /* AppAuthCore */; };
+		9B9D89252E0BB5AB00D98C13 /* AppAuthTV in Frameworks */ = {isa = PBXBuildFile; productRef = 9B9D89242E0BB5AB00D98C13 /* AppAuthTV */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		9B9D89042E0B9E4000D98C13 /* remeetner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = remeetner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9B9D89252E0BB5AB00D98C13 /* AppAuthTV in Frameworks */,
+				9B9D89212E0BB5AB00D98C13 /* AppAuth in Frameworks */,
+				9B9D89232E0BB5AB00D98C13 /* AppAuthCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +74,9 @@
 			);
 			name = remeetner;
 			packageProductDependencies = (
+				9B9D89202E0BB5AB00D98C13 /* AppAuth */,
+				9B9D89222E0BB5AB00D98C13 /* AppAuthCore */,
+				9B9D89242E0BB5AB00D98C13 /* AppAuthTV */,
 			);
 			productName = remeetner;
 			productReference = 9B9D89042E0B9E4000D98C13 /* remeetner.app */;
@@ -94,6 +106,9 @@
 			);
 			mainGroup = 9B9D88FB2E0B9E4000D98C13;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9B9D891F2E0BB5AB00D98C13 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9B9D89052E0B9E4000D98C13 /* Products */;
 			projectDirPath = "";
@@ -335,6 +350,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9B9D891F2E0BB5AB00D98C13 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/openid/AppAuth-iOS.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9B9D89202E0BB5AB00D98C13 /* AppAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B9D891F2E0BB5AB00D98C13 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */;
+			productName = AppAuth;
+		};
+		9B9D89222E0BB5AB00D98C13 /* AppAuthCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B9D891F2E0BB5AB00D98C13 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */;
+			productName = AppAuthCore;
+		};
+		9B9D89242E0BB5AB00D98C13 /* AppAuthTV */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B9D891F2E0BB5AB00D98C13 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */;
+			productName = AppAuthTV;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9B9D88FC2E0B9E4000D98C13 /* Project object */;
 }
