@@ -7,19 +7,29 @@
 
 import SwiftUI
 import AppKit
+import Combine
 
 class SettingsModel: ObservableObject {
     @Published var breakDuration: TimeInterval = 10
+    @Published var minutesBeforeMeet: Int = 2
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusItem: NSStatusItem!
     var overlayWindow: NSWindow?
     var settingsWindow: NSWindow?
+    var eventsWindow: NSWindow?
+    
+    var cancellables: Set<AnyCancellable> = []
 
     var settingsModel = SettingsModel()
     var overlayTimer: Timer?
     var secondsRemaining: Int = 0
+    
+    var eventCheckTimer: Timer?
+    var futureEvents: [CalendarEvent] = []
+    
+    let eventStore = EventStore()
     
     func application(_ app: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -32,17 +42,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "moon.zzz.fill", accessibilityDescription: "remeetner")
-        }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Activar descanso", action: #selector(startBreak), keyEquivalent: "b"))
-        menu.addItem(NSMenuItem(title: "Conectar Google Calendar", action: #selector(connectGoogleCalendar), keyEquivalent: "g"))
-        menu.addItem(NSMenuItem(title: "Configuración...", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Salir", action: #selector(quit), keyEquivalent: "q"))
         statusItem.menu = menu
+        
+        updateStatusButton()
+        updateMenuItems()
+
+        GoogleOAuthManager.shared.$isAuthenticated
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isAuthenticated in
+                self?.updateMenuItems()
+                self?.updateStatusButton()
+                
+                if isAuthenticated {
+                    self?.fetchAndTrackEvents()
+                } else {
+                    self?.eventCheckTimer?.invalidate()
+                    self?.futureEvents = []
+                }
+            }
+            .store(in: &cancellables)
     }
     
     @objc func connectGoogleCalendar() {
@@ -60,7 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    @objc func startBreak() {
+    @objc func showOverlay() {
         guard overlayWindow == nil else { return }
         guard let screenFrame = NSScreen.main?.frame else { return }
 
@@ -94,6 +114,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
     }
+    
+    func updateStatusButton() {
+        guard let button = statusItem.button else { return }
+
+        let isAuthenticated = GoogleOAuthManager.shared.isAuthenticated
+
+        button.image = NSImage(systemSymbolName: isAuthenticated ? "checkmark.circle.fill" : "moon.zzz.fill", accessibilityDescription: "remeetner")
+    }
+    
+    func updateMenuItems() {
+        let isAuthenticated = GoogleOAuthManager.shared.isAuthenticated
+        guard let menu = statusItem.menu else { return }
+
+        menu.removeAllItems()
+        
+        menu.addItem(NSMenuItem(title: "Activar descanso", action: #selector(showOverlay), keyEquivalent: "b"))
+
+        if isAuthenticated {
+            menu.addItem(NSMenuItem(title: "Eventos del calendario", action: #selector(openCalendarEvents), keyEquivalent: "e"))
+            menu.addItem(NSMenuItem(title: "Configuración", action: #selector(openSettings), keyEquivalent: ","))
+            menu.addItem(NSMenuItem(title: "Cerrar sesión", action: #selector(logout), keyEquivalent: "l"))
+        } else {
+            menu.addItem(NSMenuItem(title: "Conectar Google Calendar", action: #selector(connectGoogleCalendar), keyEquivalent: "g"))
+        }
+
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Salir", action: #selector(quit), keyEquivalent: "q"))
+    }
 
     func updateOverlayView() {
         guard let overlayWindow = overlayWindow else { return }
@@ -122,6 +170,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.overlayWindow = nil
         }
     }
+    
+    @objc func logout() {
+        GoogleOAuthManager.shared.clearAuthState()
+    }
 
     @objc func openSettings() {
         if settingsWindow == nil {
@@ -144,13 +196,80 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settingsWindow?.makeKeyAndOrderFront(nil)
         }
     }
+    
+    @objc func openCalendarEvents() {
+        if eventsWindow == nil {
+            let eventsView = EventsView()
+                .environmentObject(eventStore)
+
+            let hosting = NSHostingController(rootView: eventsView)
+
+            eventsWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 320, height: 400),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            eventsWindow?.contentViewController = hosting
+            eventsWindow?.title = "Eventos del calendario"
+            eventsWindow?.center()
+            eventsWindow?.makeKeyAndOrderFront(nil)
+            eventsWindow?.isReleasedWhenClosed = false
+            eventsWindow?.delegate = self
+        } else {
+            eventsWindow?.makeKeyAndOrderFront(nil)
+        }
+    }
 
     func windowWillClose(_ notification: Notification) {
         if let window = notification.object as? NSWindow {
             if window == overlayWindow {
                 overlayWindow = nil
+            } else if window == eventsWindow {
+                eventsWindow = nil
             } else if window == settingsWindow {
                 settingsWindow = nil
+            }
+        }
+    }
+    
+    func startCheckingForUpcomingMeetEvents() {
+        eventCheckTimer?.invalidate()
+        eventCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.checkUpcomingEvents()
+        }
+    }
+
+    func checkUpcomingEvents() {
+        guard overlayWindow == nil else { return }
+
+        let now = Date()
+        let leadTime = settingsModel.minutesBeforeMeet * 60
+
+        for event in futureEvents {
+            guard let startString = event.start.dateTime,
+                  let startDate = ISO8601DateFormatter().date(from: startString),
+                  let _ = event.hangoutLink else { continue }
+
+            let timeUntilStart = startDate.timeIntervalSince(now)
+
+            if timeUntilStart > 0 && timeUntilStart <= TimeInterval(leadTime) {
+                print("Iniciando descanso para Meet que comienza en \(Int(timeUntilStart)) segundos")
+                showOverlay()
+                break
+            }
+        }
+    }
+    
+    func fetchAndTrackEvents() {
+        GoogleOAuthManager.shared.fetchTodayEvents { [weak self] events in
+            DispatchQueue.main.async {
+                print("Eventos cargados:", events?.count ?? 0)
+                events?.forEach { print("•", $0.summary ?? "(sin título)") }
+                
+                self?.eventStore.events = events ?? []
+                self?.futureEvents = events ?? []
+                self?.startCheckingForUpcomingMeetEvents()
             }
         }
     }

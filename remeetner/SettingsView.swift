@@ -11,8 +11,6 @@ struct SettingsView: View {
     @ObservedObject var settings: SettingsModel
     @Environment(\.presentationMode) var presentation
 
-    @State private var events: [CalendarEvent] = []
-
     var body: some View {
         VStack(spacing: 20) {
             Text("Duración del descanso")
@@ -22,44 +20,12 @@ struct SettingsView: View {
                 Text("\(Int(settings.breakDuration)) segundos")
             }
 
-            Divider()
-
-            Text("Eventos de hoy")
+            Text("Minutos antes del Meet")
                 .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-            if events.isEmpty {
-                Text("No hay eventos.")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(events, id: \.id) { event in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(event.summary ?? "Sin título")
-                                    .bold()
-                                if let start = event.start.dateTime {
-                                    Text(formatTime(from: start))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                if let link = event.hangoutLink {
-                                    Text("🔗 Google Meet")
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                            .padding(6)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(6)
-                        }
-                    }
-                }
-                .frame(height: 200)
+            Stepper(value: $settings.minutesBeforeMeet, in: 1...30, step: 1) {
+                Text("\(settings.minutesBeforeMeet) min antes")
             }
-
-            Divider()
 
             Button("Cerrar") {
                 presentation.wrappedValue.dismiss()
@@ -67,25 +33,5 @@ struct SettingsView: View {
         }
         .padding()
         .frame(width: 300)
-        .onAppear {
-            GoogleOAuthManager.shared.fetchTodayEvents { result in
-                DispatchQueue.main.async {
-                    self.events = result ?? []
-                }
-            }
-        }
-    }
-
-    func formatTime(from iso: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: iso) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .none
-            displayFormatter.timeStyle = .short
-            return displayFormatter.string(from: date)
-        }
-        return iso
     }
 }
-
-

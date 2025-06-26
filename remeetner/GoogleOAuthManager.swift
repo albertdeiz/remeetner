@@ -28,6 +28,8 @@ struct CalendarEventListResponse: Decodable {
 }
 
 class GoogleOAuthManager: NSObject {
+    @Published private(set) var isAuthenticated: Bool = false
+
     static let shared = GoogleOAuthManager()
     private let authStateKey = "authState"
 
@@ -64,6 +66,7 @@ class GoogleOAuthManager: NSObject {
             do {
                 let restoredState = try NSKeyedUnarchiver.unarchivedObject(ofClass: OIDAuthState.self, from: data)
                 self.authState = restoredState
+                self.isAuthenticated = true
             } catch {
                 print("Error al deserializar authState: \(error)")
             }
@@ -93,6 +96,7 @@ class GoogleOAuthManager: NSObject {
             ) { authState, error in
                 if let authState = authState {
                     self.authState = authState
+                    self.isAuthenticated = true
                     self.saveAuthState()
                     print("Access Token: \(authState.lastTokenResponse?.accessToken ?? "none")")
                     completion(true)
@@ -118,52 +122,70 @@ class GoogleOAuthManager: NSObject {
     }
     
     func clearAuthState() {
-        authState = nil
+        self.authState = nil
+        self.isAuthenticated = false
         UserDefaults.standard.removeObject(forKey: authStateKey)
     }
     
-    func fetchTodayEvents(completion: @escaping ([CalendarEvent]?) -> Void) {
-        guard let token = getAccessToken() else {
-            print("No access token disponible")
-            completion(nil)
-            return
+    func ensureFreshToken(completion: @escaping (String?) -> Void) {
+        authState?.performAction { accessToken, idToken, error in
+            if let error = error {
+                print("Error al obtener token válido:", error.localizedDescription)
+                completion(nil)
+            } else {
+                completion(accessToken)
+            }
         }
-
-        var components = URLComponents(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events")!
-        let now = ISO8601DateFormatter().string(from: Date())
-
-        // ISO 8601 de fin del día
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 7, to: Date())!
-        let end = ISO8601DateFormatter().string(from: endOfDay)
-        
-        components.queryItems = [
-            URLQueryItem(name: "timeMin", value: now),
-            URLQueryItem(name: "timeMax", value: end),
-            URLQueryItem(name: "singleEvents", value: "true"),
-            URLQueryItem(name: "orderBy", value: "startTime")
-        ]
-
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data else {
-                print("Error: \(error?.localizedDescription ?? "sin datos")")
+    }
+    
+    func fetchTodayEvents(completion: @escaping ([CalendarEvent]?) -> Void) {
+        ensureFreshToken { token in
+            
+            guard let token = token else {
+                print("No access token disponible")
                 completion(nil)
                 return
             }
             
-            print(data)
-
-            do {
-                let decoded = try JSONDecoder().decode(CalendarEventListResponse.self, from: data)
-                print(decoded)
-                completion(decoded.items)
-            } catch {
-                print("Error decodificando eventos: \(error)")
-                completion(nil)
-            }
-        }.resume()
+            var components = URLComponents(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events")!
+            let today = Date()
+            let now = ISO8601DateFormatter().string(from: today)
+            
+            // ISO 8601 de fin del día
+            let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: today)!
+            let end = ISO8601DateFormatter().string(from: endOfDay)
+            
+            components.queryItems = [
+                URLQueryItem(name: "timeMin", value: now),
+                URLQueryItem(name: "timeMax", value: end),
+                URLQueryItem(name: "singleEvents", value: "true"),
+                URLQueryItem(name: "orderBy", value: "startTime")
+            ]
+            
+            var request = URLRequest(url: components.url!)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                guard let data else {
+                    print("Error: \(error?.localizedDescription ?? "sin datos")")
+                    completion(nil)
+                    return
+                }
+                
+                print("Respuesta cruda:", String(data: data, encoding: .utf8) ?? "no se pudo decodificar")
+                
+                do {
+                    let decoded = try JSONDecoder().decode(CalendarEventListResponse.self, from: data)
+                    print(decoded)
+                    DispatchQueue.main.async {
+                        completion(decoded.items)
+                    }
+                } catch {
+                    print("Error decodificando eventos: \(error)")
+                    completion(nil)
+                }
+            }.resume()
+        }
     }
 }
