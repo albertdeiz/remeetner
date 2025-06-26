@@ -148,7 +148,10 @@ class GoogleOAuthManager: NSObject {
             }
             
             var components = URLComponents(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events")!
+
             let today = Date()
+            let currentHour = Calendar.current.component(.hour, from: today)
+            let sinceNow = Calendar.current.date(bySettingHour: currentHour, minute: 00, second: 00, of: today)!
             let now = ISO8601DateFormatter().string(from: today)
             
             // ISO 8601 de fin del día
@@ -172,8 +175,6 @@ class GoogleOAuthManager: NSObject {
                     completion(nil)
                     return
                 }
-                
-                print("Respuesta cruda:", String(data: data, encoding: .utf8) ?? "no se pudo decodificar")
                 
                 do {
                     let decoded = try JSONDecoder().decode(CalendarEventListResponse.self, from: data)

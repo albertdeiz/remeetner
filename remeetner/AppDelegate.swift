@@ -12,6 +12,8 @@ import Combine
 class SettingsModel: ObservableObject {
     @Published var breakDuration: TimeInterval = 10
     @Published var minutesBeforeMeet: Int = 2
+    @Published var eventCheckIntervalMinutes: Int = 1
+    @Published var eventRefreshIntervalMinutes: Int = 5
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
@@ -27,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var secondsRemaining: Int = 0
     
     var eventCheckTimer: Timer?
+    var eventRefreshTimer: Timer?
     var futureEvents: [CalendarEvent] = []
     
     let eventStore = EventStore()
@@ -233,10 +236,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    func startCheckingForUpcomingMeetEvents() {
+    func startRefreshingEvents(every intervalMinutes: Int) {
+        eventRefreshTimer?.invalidate()
+        eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
+            print("🔁 Refrescando eventos desde Google Calendar...")
+            self?.fetchAndTrackEvents()
+        }
+    }
+    
+    func startCheckingForUpcomingMeetEvents(every intervalMinutes: Int) {
         eventCheckTimer?.invalidate()
-        eventCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.checkUpcomingEvents()
+        eventCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
+            guard let self else { return }
+
+            GoogleOAuthManager.shared.fetchTodayEvents { events in
+                DispatchQueue.main.async {
+                    print("🔁 Eventos actualizados:", events?.count ?? 0)
+                    self.eventStore.events = events ?? []
+                    self.futureEvents = events ?? []
+                    self.checkUpcomingEvents()
+                }
+            }
         }
     }
 
@@ -269,7 +289,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 
                 self?.eventStore.events = events ?? []
                 self?.futureEvents = events ?? []
-                self?.startCheckingForUpcomingMeetEvents()
+                self?.startCheckingForUpcomingMeetEvents(every: self?.settingsModel.eventCheckIntervalMinutes ?? 1)
+                self?.startRefreshingEvents(every: self?.settingsModel.eventRefreshIntervalMinutes ?? 5)
             }
         }
     }

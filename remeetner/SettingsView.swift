@@ -20,12 +20,34 @@ struct SettingsView: View {
                 Text("\(Int(settings.breakDuration)) segundos")
             }
 
+            Divider()
+
             Text("Minutos antes del Meet")
                 .font(.headline)
 
             Stepper(value: $settings.minutesBeforeMeet, in: 1...30, step: 1) {
                 Text("\(settings.minutesBeforeMeet) min antes")
             }
+
+            Divider()
+
+            Text("Intervalo de verificación")
+                .font(.headline)
+
+            Stepper(value: $settings.eventCheckIntervalMinutes, in: 1...30, step: 1) {
+                Text("Cada \(settings.eventCheckIntervalMinutes) min (verificar eventos cercanos)")
+            }
+
+            Divider()
+
+            Text("Intervalo de actualización")
+                .font(.headline)
+
+            Stepper(value: $settings.eventRefreshIntervalMinutes, in: 1...60, step: 1) {
+                Text("Cada \(settings.eventRefreshIntervalMinutes) min (sincronizar con Google)")
+            }
+
+            Divider()
 
             Button("Cerrar") {
                 presentation.wrappedValue.dismiss()
