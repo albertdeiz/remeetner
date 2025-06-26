@@ -21,19 +21,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var overlayWindow: NSWindow?
     var settingsWindow: NSWindow?
     var eventsWindow: NSWindow?
-    
+
     var cancellables: Set<AnyCancellable> = []
 
     var settingsModel = SettingsModel()
     var overlayTimer: Timer?
     var secondsRemaining: Int = 0
-    
+
     var eventCheckTimer: Timer?
     var eventRefreshTimer: Timer?
     var futureEvents: [CalendarEvent] = []
-    
+
     let eventStore = EventStore()
     
+    var isFetchingEvents = false
+
     func application(_ app: NSApplication, open urls: [URL]) {
         for url in urls {
             if GoogleOAuthManager.shared.handleRedirectURL(url) {
@@ -48,26 +50,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let menu = NSMenu()
         statusItem.menu = menu
-        
+
         updateStatusButton()
         updateMenuItems()
+        
+        settingsModel.$eventCheckIntervalMinutes
+            .sink { [weak self] newValue in
+                guard GoogleOAuthManager.shared.isAuthenticated else { return }
+                self?.startCheckingForUpcomingMeetEvents(every: newValue)
+            }
+            .store(in: &cancellables)
+
+        settingsModel.$eventRefreshIntervalMinutes
+            .sink { [weak self] newValue in
+                guard GoogleOAuthManager.shared.isAuthenticated else { return }
+                self?.startRefreshingEvents(every: newValue)
+            }
+            .store(in: &cancellables)
 
         GoogleOAuthManager.shared.$isAuthenticated
             .receive(on: RunLoop.main)
             .sink { [weak self] isAuthenticated in
                 self?.updateMenuItems()
                 self?.updateStatusButton()
-                
+
                 if isAuthenticated {
                     self?.fetchAndTrackEvents()
                 } else {
                     self?.eventCheckTimer?.invalidate()
+                    self?.eventRefreshTimer?.invalidate()
                     self?.futureEvents = []
                 }
             }
             .store(in: &cancellables)
     }
-    
+
     @objc func connectGoogleCalendar() {
         guard let window = NSApp.windows.first else {
             print("No window available for presentation.")
@@ -117,7 +134,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
     }
-    
+
     func updateStatusButton() {
         guard let button = statusItem.button else { return }
 
@@ -125,13 +142,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         button.image = NSImage(systemSymbolName: isAuthenticated ? "checkmark.circle.fill" : "moon.zzz.fill", accessibilityDescription: "remeetner")
     }
-    
+
     func updateMenuItems() {
         let isAuthenticated = GoogleOAuthManager.shared.isAuthenticated
         guard let menu = statusItem.menu else { return }
 
         menu.removeAllItems()
-        
+
         menu.addItem(NSMenuItem(title: "Activar descanso", action: #selector(showOverlay), keyEquivalent: "b"))
 
         if isAuthenticated {
@@ -173,7 +190,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.overlayWindow = nil
         }
     }
-    
+
     @objc func logout() {
         GoogleOAuthManager.shared.clearAuthState()
     }
@@ -184,7 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let hosting = NSHostingController(rootView: settingsView)
 
             settingsWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 300, height: 150),
+                contentRect: NSRect(x: 0, y: 0, width: 300, height: 250),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
@@ -199,7 +216,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settingsWindow?.makeKeyAndOrderFront(nil)
         }
     }
-    
+
     @objc func openCalendarEvents() {
         if eventsWindow == nil {
             let eventsView = EventsView()
@@ -235,11 +252,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
     }
-    
+
     func startRefreshingEvents(every intervalMinutes: Int) {
         eventRefreshTimer?.invalidate()
         eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
-            print("🔁 Refrescando eventos desde Google Calendar...")
             self?.fetchAndTrackEvents()
         }
     }
@@ -247,16 +263,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func startCheckingForUpcomingMeetEvents(every intervalMinutes: Int) {
         eventCheckTimer?.invalidate()
         eventCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
-            guard let self else { return }
-
-            GoogleOAuthManager.shared.fetchTodayEvents { events in
-                DispatchQueue.main.async {
-                    print("🔁 Eventos actualizados:", events?.count ?? 0)
-                    self.eventStore.events = events ?? []
-                    self.futureEvents = events ?? []
-                    self.checkUpcomingEvents()
-                }
-            }
+            self?.checkUpcomingEvents()
         }
     }
 
@@ -280,15 +287,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
     }
-    
+
     func fetchAndTrackEvents() {
+        guard !isFetchingEvents else { return }
+        isFetchingEvents = true
+        
         GoogleOAuthManager.shared.fetchTodayEvents { [weak self] events in
             DispatchQueue.main.async {
                 print("Eventos cargados:", events?.count ?? 0)
                 events?.forEach { print("•", $0.summary ?? "(sin título)") }
                 
+                self?.isFetchingEvents = false
+
                 self?.eventStore.events = events ?? []
                 self?.futureEvents = events ?? []
+
                 self?.startCheckingForUpcomingMeetEvents(every: self?.settingsModel.eventCheckIntervalMinutes ?? 1)
                 self?.startRefreshingEvents(every: self?.settingsModel.eventRefreshIntervalMinutes ?? 5)
             }
