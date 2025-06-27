@@ -10,6 +10,5 @@ import Combine
 
 class SettingsModel: ObservableObject {
     @Published var breakDuration: TimeInterval = 10
-    @Published var eventCheckIntervalMinutes: Int = 1
     @Published var eventRefreshIntervalMinutes: Int = 5
 }

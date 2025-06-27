@@ -22,20 +22,11 @@ struct SettingsView: View {
 
             Divider()
 
-            Text("Intervalo de verificación")
-                .font(.headline)
-
-            Stepper(value: $settings.eventCheckIntervalMinutes, in: 1...30, step: 1) {
-                Text("Cada \(settings.eventCheckIntervalMinutes) min (verificar eventos cercanos)")
-            }
-
-            Divider()
-
-            Text("Intervalo de actualización")
+            Text("Intervalo de sincronización")
                 .font(.headline)
 
             Stepper(value: $settings.eventRefreshIntervalMinutes, in: 1...60, step: 1) {
-                Text("Cada \(settings.eventRefreshIntervalMinutes) min (sincronizar con Google)")
+                Text("Cada \(settings.eventRefreshIntervalMinutes) min")
             }
 
             Divider()

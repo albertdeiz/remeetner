@@ -23,7 +23,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var overlayTimer: Timer?
     var secondsRemaining: Int = 0
 
-    var eventCheckTimer: Timer?
     var eventRefreshTimer: Timer?
     var futureEvents: [CalendarEvent] = []
     var triggeredEventIDs: Set<String> = []
@@ -46,13 +45,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         updateStatusButton()
         updateMenuItems()
 
-        settingsModel.$eventCheckIntervalMinutes
-            .sink { [weak self] newValue in
-                guard GoogleOAuthManager.shared.isAuthenticated else { return }
-                self?.startCheckingForUpcomingMeetEvents(every: newValue)
-            }
-            .store(in: &cancellables)
-
         settingsModel.$eventRefreshIntervalMinutes
             .sink { [weak self] newValue in
                 guard GoogleOAuthManager.shared.isAuthenticated else { return }
@@ -68,9 +60,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 if isAuthenticated {
                     self?.fetchAndTrackEvents()
-                    self?.checkUpcomingEvents()
                 } else {
-                    self?.eventCheckTimer?.invalidate()
                     self?.eventRefreshTimer?.invalidate()
                     self?.futureEvents = []
                 }
@@ -241,14 +231,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func startCheckingForUpcomingMeetEvents(every intervalMinutes: Int) {
-        eventCheckTimer?.invalidate()
-        print("⏱️ Timer: chequeo de eventos cada \(intervalMinutes) min")
-        eventCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
-            self?.checkUpcomingEvents()
-        }
-    }
-
     func startRefreshingEvents(every intervalMinutes: Int) {
         eventRefreshTimer?.invalidate()
         print("🔁 Timer: refresco de eventos cada \(intervalMinutes) min")
@@ -271,10 +253,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let id = event.id
             guard !triggeredEventIDs.contains(id) else { continue }
 
-            // Calcular diferencia en segundos
             let timeInterval = startDate.timeIntervalSince(now)
-            
-            // Activar overlay si el evento está en los próximos 60 segundos (1 minuto)
+
             if timeInterval > 0 && timeInterval <= 60 {
                 print("✅ Mostrando overlay para evento '\(event.summary ?? "-")' (comienza en \(Int(timeInterval))s)")
                 triggeredEventIDs.insert(id)
@@ -295,7 +275,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.triggeredEventIDs.removeAll()
 
                 self?.statusModel.lastSyncDate = Date()
-                self?.checkUpcomingEvents() // Forzar chequeo inmediato
+                self?.checkUpcomingEvents()
             }
         }
     }
