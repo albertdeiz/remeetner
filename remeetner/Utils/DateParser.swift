@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Utilidad para parsear fechas de diferentes formatos
+/// Utility for parsing dates from different formats
 class DateParser: DateParsing {
     static let shared = DateParser()
     
@@ -16,17 +16,17 @@ class DateParser: DateParsing {
     private lazy var dateFormatters: [ISO8601DateFormatter] = {
         var formatters: [ISO8601DateFormatter] = []
         
-        // Formatter 1: Con fracciones de segundo
+        // Formatter 1: With fractional seconds
         let formatter1 = ISO8601DateFormatter()
         formatter1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         formatters.append(formatter1)
-        
-        // Formatter 2: Sin fracciones de segundo
+
+        // Formatter 2: Without fractional seconds
         let formatter2 = ISO8601DateFormatter()
         formatter2.formatOptions = [.withInternetDateTime]
         formatters.append(formatter2)
         
-        // Formatter 3: Formato más básico
+        // Formatter 3: Most basic ISO8601 format
         let formatter3 = ISO8601DateFormatter()
         formatter3.formatOptions = [.withFullDate, .withFullTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         formatters.append(formatter3)
@@ -35,8 +35,8 @@ class DateParser: DateParsing {
     }()
     
     private init() {}
-    
-    /// Intenta parsear una fecha con múltiples formatos
+
+    // Try to parse a date using multiple formats
     func parseDate(from dateString: String) -> Date? {
         // Intentar con cada formatter ISO8601
         for formatter in dateFormatters {
@@ -44,29 +44,29 @@ class DateParser: DateParsing {
                 return date
             }
         }
-        
-        // Si ninguno funciona, intentar con DateFormatter como último recurso
+
+        // If none work, try using DateFormatter as a fallback
         let fallbackFormatter = DateFormatter()
         fallbackFormatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        // Formato con zona horaria Z
+
+        // Format with timezone Z
         fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
         if let date = fallbackFormatter.date(from: dateString) {
             return date
         }
-        
-        // Formato sin zona horaria
+
+        // Format without timezone
         fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         if let date = fallbackFormatter.date(from: dateString) {
             return date
         }
-        
-        // Último intento: formato más básico
+
+        // last attempt: most basic format
         fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return fallbackFormatter.date(from: dateString)
     }
-    
-    /// Debug: muestra información sobre el parsing de fechas
+
+    /// Debug: shows information about date parsing
     func debugEventDates(_ events: [CalendarEvent]) {
         guard AppConfiguration.isDebugMode else { return }
         

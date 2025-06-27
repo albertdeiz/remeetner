@@ -9,7 +9,7 @@ import SwiftUI
 import AppKit
 import Combine
 
-/// Coordinador principal de la aplicación - Punto de entrada único
+/// Main application coordinator - Single entry point
 class AppCoordinator: ObservableObject, AppCoordinating {
     // MARK: - Dependencies
     private let settingsModel: SettingsModel

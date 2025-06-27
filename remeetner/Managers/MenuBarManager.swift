@@ -8,7 +8,7 @@
 import AppKit
 import Combine
 
-/// Gestiona el menu bar y status item
+/// Manages the menu bar and status item
 class MenuBarManager: ObservableObject {
     private var statusItem: NSStatusItem?
     private var cancellables: Set<AnyCancellable> = []
@@ -28,8 +28,8 @@ class MenuBarManager: ObservableObject {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem?.menu = NSMenu()
-        
-        // Observar cambios en el estado de autenticación
+
+        // Observe changes in authentication status
         GoogleOAuthManager.shared.$isAuthenticated
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -37,8 +37,8 @@ class MenuBarManager: ObservableObject {
                 self?.updateMenuItems()
             }
             .store(in: &cancellables)
-        
-        // Observar cambios en la fecha de última sincronización
+
+        // Observe changes in last sync date
         statusModel.$lastSyncDate
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in

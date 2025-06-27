@@ -8,7 +8,7 @@
 import SwiftUI
 import AppKit
 
-/// Gestiona todas las ventanas de la aplicación
+/// Manages all application windows
 class WindowManager: NSObject, NSWindowDelegate, WindowManaging {
     static let shared = WindowManager()
     

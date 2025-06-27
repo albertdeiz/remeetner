@@ -27,7 +27,7 @@ struct OverlayView: View {
                 .foregroundColor(.white.opacity(0.85))
 
             VStack(spacing: 10) {
-                Text("Se cerrará en \(secondsRemaining) segundos")
+                Text("It will close in \(secondsRemaining) seconds.")
                     .font(.headline)
                     .foregroundColor(.white)
 

@@ -183,7 +183,7 @@ class GoogleOAuthManager: NSObject {
                         completion(decoded.items)
                     }
                 } catch {
-                    print("Error decodificando eventos: \(error)")
+                    print("Error decoding events: \(error)")
                     completion(nil)
                 }
             }.resume()

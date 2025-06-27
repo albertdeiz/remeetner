@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Sistema de logging centralizado
+/// Centralized logging system
 class Logger: Logging {
     static let shared = Logger()
     

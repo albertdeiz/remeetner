@@ -8,7 +8,7 @@
 import Foundation
 import AppKit
 
-/// Gestiona los descansos y overlay
+/// Manages breaks and overlay
 class BreakManager: ObservableObject, BreakManaging {
     private var overlayTimer: Timer?
     private var secondsRemaining: Int = 0
@@ -73,7 +73,7 @@ class BreakManager: ObservableObject, BreakManaging {
     }
 }
 
-/// Gestiona los sonidos de la aplicación
+/// Manages application sounds
 class AudioManager: AudioPlaying {
     func playStartSound() {
         NSSound(named: AppConfiguration.startSoundName)?.play()

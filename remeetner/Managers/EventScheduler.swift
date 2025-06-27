@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-/// Gestiona la programación y seguimiento de eventos del calendario
+/// Manages calendar event scheduling and tracking
 class EventScheduler: ObservableObject, EventScheduling {
     @Published private(set) var futureEvents: [CalendarEvent] = []
     @Published private(set) var nextEvent: CalendarEvent?
@@ -26,7 +26,7 @@ class EventScheduler: ObservableObject, EventScheduling {
     
     private var cancellables: Set<AnyCancellable> = []
     
-    // Variables para precisión de timing
+    // Variables for precision timing
     private var eventTimeToleranceSeconds: TimeInterval = AppConfiguration.eventTimeToleranceSeconds
     
     init(settingsModel: SettingsModel, eventStore: EventStore, statusModel: AppStatusModel, 
@@ -41,7 +41,7 @@ class EventScheduler: ObservableObject, EventScheduling {
     }
     
     private func setupBindings() {
-        // Observar cambios en el intervalo de refresco
+        // Observe changes in refresh interval
         settingsModel.$eventRefreshIntervalMinutes
             .sink { [weak self] newValue in
                 guard GoogleOAuthManager.shared.isAuthenticated else { return }
@@ -49,7 +49,7 @@ class EventScheduler: ObservableObject, EventScheduling {
             }
             .store(in: &cancellables)
         
-        // Observar cambios en autenticación
+        // Observe changes in authentication status
         GoogleOAuthManager.shared.$isAuthenticated
             .receive(on: RunLoop.main)
             .sink { [weak self] isAuthenticated in
@@ -149,8 +149,8 @@ class EventScheduler: ObservableObject, EventScheduling {
     
     private func checkNextEventTiming() {
         guard !breakManager.isBreakActive else { return }
-        
-        // Buscar el próximo evento si no tenemos uno o si el actual ya pasó
+
+        // Search for the next event if we don't have one or if the current one has passed
         if nextEvent == nil || hasEventPassed(nextEvent) {
             nextEvent = findNextEvent()
         }
@@ -165,7 +165,7 @@ class EventScheduler: ObservableObject, EventScheduling {
         let now = Date()
         let timeUntilEvent = startDate.timeIntervalSince(now)
         
-        // Debug timing detallado
+        // Detailed debug timing
         if timeUntilEvent <= AppConfiguration.debugTimingThreshold && Int(timeUntilEvent * 10) % 10 == 0 {
             let currentFormatter = DateFormatter()
             currentFormatter.dateFormat = "HH:mm:ss.SSS"
@@ -175,10 +175,10 @@ class EventScheduler: ObservableObject, EventScheduling {
             let currentTime = currentFormatter.string(from: now)
             let eventTime = eventFormatter.string(from: startDate)
             
-            logger.verbose("Debug timing - Actual: \(currentTime), Evento: \(eventTime), Diferencia: \(String(format: "%.1f", timeUntilEvent))s")
+            logger.verbose("Debug timing - Current time: \(currentTime), Event: \(eventTime), Difference: \(String(format: "%.1f", timeUntilEvent))s")
         }
-        
-        // Activar overlay con tolerancia
+
+        // Activate overlay with tolerance
         if timeUntilEvent <= eventTimeToleranceSeconds && timeUntilEvent >= -eventTimeToleranceSeconds {
             logger.info("Activating overlay for '\(event.summary ?? "-")' (T-\(String(format: "%.1f", timeUntilEvent))s)")
             triggeredEventIDs.insert(event.id)

@@ -10,11 +10,11 @@ import AppKit
 
 @main
 struct remeetnerApp: App {
-    // Conectar AppDelegate con SwiftUI
+    // Connect AppDelegate with SwiftUI
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // No necesitamos ventana principal visible
+        // We don't need a main visible window
         Settings {
             EmptyView()
         }

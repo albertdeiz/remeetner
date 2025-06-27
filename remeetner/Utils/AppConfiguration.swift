@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Configuración centralizada de la aplicación
+/// Centralized application configuration
 enum AppConfiguration {
     // MARK: - Timing
     static let eventTimeToleranceSeconds: TimeInterval = 0.5
@@ -50,7 +50,7 @@ enum AppConfiguration {
     }
 }
 
-/// Configuración para diferentes entornos
+/// Configuration for different environments
 enum AppEnvironment {
     case debug
     case release
@@ -73,7 +73,7 @@ enum AppEnvironment {
     }
 }
 
-/// Niveles de logging
+/// Logging levels
 enum LogLevel: Int, CaseIterable {
     case verbose = 0
     case info = 1
