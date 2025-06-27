@@ -65,45 +65,45 @@ class MenuBarManager: ObservableObject {
         
         menu.removeAllItems()
         
-        // Activar descanso
-        let breakItem = NSMenuItem(title: "Activar descanso", action: #selector(showOverlayAction), keyEquivalent: "b")
+        // Activate break
+        let breakItem = NSMenuItem(title: "Activate break", action: #selector(showOverlayAction), keyEquivalent: "b")
         breakItem.target = self
         menu.addItem(breakItem)
         
         if isAuthenticated {
-            // Última sincronización
+            // Last sync
             if let lastSync = statusModel.lastSyncDate {
                 let formatted = DateFormatter.localizedString(from: lastSync, dateStyle: .none, timeStyle: .short)
-                menu.addItem(NSMenuItem(title: "Última sincronización: \(formatted)", action: nil, keyEquivalent: ""))
+                menu.addItem(NSMenuItem(title: "Last sync: \(formatted)", action: nil, keyEquivalent: ""))
             }
             
             menu.addItem(NSMenuItem.separator())
             
-            // Eventos del calendario
-            let eventsItem = NSMenuItem(title: "Eventos del calendario", action: #selector(openCalendarEventsAction), keyEquivalent: "e")
+            // Calendar events
+            let eventsItem = NSMenuItem(title: "Calendar events", action: #selector(openCalendarEventsAction), keyEquivalent: "e")
             eventsItem.target = self
             menu.addItem(eventsItem)
             
-            // Configuración
-            let settingsItem = NSMenuItem(title: "Configuración", action: #selector(openSettingsAction), keyEquivalent: ",")
+            // Settings
+            let settingsItem = NSMenuItem(title: "Settings", action: #selector(openSettingsAction), keyEquivalent: ",")
             settingsItem.target = self
             menu.addItem(settingsItem)
             
-            // Cerrar sesión
-            let logoutItem = NSMenuItem(title: "Cerrar sesión", action: #selector(logoutAction), keyEquivalent: "l")
+            // Sign out
+            let logoutItem = NSMenuItem(title: "Sign out", action: #selector(logoutAction), keyEquivalent: "l")
             logoutItem.target = self
             menu.addItem(logoutItem)
         } else {
-            // Conectar Google Calendar
-            let connectItem = NSMenuItem(title: "Conectar Google Calendar", action: #selector(connectGoogleCalendarAction), keyEquivalent: "g")
+            // Connect Google Calendar
+            let connectItem = NSMenuItem(title: "Connect Google Calendar", action: #selector(connectGoogleCalendarAction), keyEquivalent: "g")
             connectItem.target = self
             menu.addItem(connectItem)
         }
         
         menu.addItem(NSMenuItem.separator())
         
-        // Salir
-        let quitItem = NSMenuItem(title: "Salir", action: #selector(quitAction), keyEquivalent: "q")
+        // Quit
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitAction), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
     }

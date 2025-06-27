@@ -70,30 +70,30 @@ class DateParser: DateParsing {
     func debugEventDates(_ events: [CalendarEvent]) {
         guard AppConfiguration.isDebugMode else { return }
         
-        logger.verbose("=== DEBUG: Formatos de fecha de eventos ===")
+        logger.verbose("=== DEBUG: Event date formats ===")
         for event in events.prefix(AppConfiguration.maxEventsToDebug) {
             if let dateTimeString = event.start.dateTime {
-                logger.verbose("Evento: '\(event.summary ?? "-")'")
-                logger.verbose("  String original: '\(dateTimeString)'")
+                logger.verbose("Event: '\(event.summary ?? "-")'")
+                logger.verbose("  Original string: '\(dateTimeString)'")
                 
                 if let parsedDate = parseDate(from: dateTimeString) {
                     let debugFormatter = DateFormatter()
                     debugFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss z"
-                    logger.verbose("  ✅ Fecha parseada: \(debugFormatter.string(from: parsedDate))")
+                    logger.verbose("  ✅ Parsed date: \(debugFormatter.string(from: parsedDate))")
                     
                     let timeInterval = parsedDate.timeIntervalSince(Date())
-                    logger.verbose("  ⏱️ Diferencia con ahora: \(Int(timeInterval)) segundos")
+                    logger.verbose("  ⏱️ Difference from now: \(Int(timeInterval)) seconds")
                 } else {
-                    logger.error("  ❌ ERROR: No se pudo parsear la fecha")
-                    logger.verbose("  🔍 Probando diferentes formatos...")
+                    logger.error("  ❌ ERROR: Could not parse date")
+                    logger.verbose("  🔍 Trying different formats...")
                     
-                    // Mostrar qué formatos intentamos
+                    // Show which formats we tried
                     for (index, formatter) in dateFormatters.enumerated() {
-                        logger.verbose("  📝 Formato \(index + 1): \(formatter.formatOptions)")
+                        logger.verbose("  📝 Format \(index + 1): \(formatter.formatOptions)")
                     }
                 }
             }
         }
-        logger.verbose("=== FIN DEBUG ===")
+        logger.verbose("=== END DEBUG ===")
     }
 }

@@ -88,7 +88,7 @@ class AppCoordinator: ObservableObject, AppCoordinating {
         }
         
         GoogleOAuthManager.shared.startAuthorization(presentingWindow: window) { success in
-            print(success ? "✅ Autenticación exitosa." : "❌ Falló la autenticación.")
+            print(success ? "✅ Authentication successful." : "❌ Authentication failed.")
         }
     }
 }

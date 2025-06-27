@@ -77,14 +77,14 @@ class EventScheduler: ObservableObject, EventScheduling {
     
     func adjustEventTimeTolerance(_ seconds: TimeInterval) {
         eventTimeToleranceSeconds = max(0.1, min(2.0, seconds))
-        logger.info("Tolerancia de timing ajustada a ±\(eventTimeToleranceSeconds)s")
+        logger.info("Timing tolerance adjusted to ±\(eventTimeToleranceSeconds)s")
     }
     
     // MARK: - Private Methods
     
     private func startRefreshingEvents(every intervalMinutes: Int) {
         eventRefreshTimer?.invalidate()
-        logger.info("Timer: refresco de eventos cada \(intervalMinutes) min")
+        logger.info("Timer: refresh events every \(intervalMinutes) min")
         eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
             self?.fetchAndTrackEvents()
         }
@@ -94,11 +94,11 @@ class EventScheduler: ObservableObject, EventScheduling {
         eventPrecisionTimer?.invalidate()
         
         guard !futureEvents.isEmpty else {
-            logger.verbose("No hay eventos futuros, timer de precisión pausado")
+            logger.verbose("No future events, precision timer paused")
             return
         }
         
-        logger.verbose("Timer de precisión iniciado (cada \(AppConfiguration.precisionTimerInterval) segundos)")
+        logger.verbose("Precision timer started (every \(AppConfiguration.precisionTimerInterval) seconds)")
         eventPrecisionTimer = Timer(timeInterval: AppConfiguration.precisionTimerInterval, repeats: true) { [weak self] _ in
             self?.checkNextEventTiming()
         }
@@ -110,7 +110,7 @@ class EventScheduler: ObservableObject, EventScheduling {
         eventPrecisionTimer?.invalidate()
         eventPrecisionTimer = nil
         nextEvent = nil
-        logger.verbose("Timer de precisión detenido")
+        logger.verbose("Precision timer stopped")
     }
     
     private func stopAllTimers() {
@@ -180,7 +180,7 @@ class EventScheduler: ObservableObject, EventScheduling {
         
         // Activar overlay con tolerancia
         if timeUntilEvent <= eventTimeToleranceSeconds && timeUntilEvent >= -eventTimeToleranceSeconds {
-            logger.info("Activando overlay para '\(event.summary ?? "-")' (T-\(String(format: "%.1f", timeUntilEvent))s)")
+            logger.info("Activating overlay for '\(event.summary ?? "-")' (T-\(String(format: "%.1f", timeUntilEvent))s)")
             triggeredEventIDs.insert(event.id)
             breakManager.startBreak()
             nextEvent = nil
@@ -200,8 +200,8 @@ class EventScheduler: ObservableObject, EventScheduling {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
-                self.logger.info("Eventos cargados: \(events?.count ?? 0)")
-                events?.forEach { self.logger.verbose("• \($0.summary ?? "(sin título)")") }
+                self.logger.info("Events loaded: \(events?.count ?? 0)")
+                events?.forEach { self.logger.verbose("• \($0.summary ?? "(no title)")") }
                 
                 self.eventStore.events = events ?? []
                 self.futureEvents = events ?? []
@@ -218,7 +218,7 @@ class EventScheduler: ObservableObject, EventScheduling {
     
     private func logUpcomingEvents() {
         guard !futureEvents.isEmpty else {
-            logger.info("No hay eventos pendientes")
+            logger.info("No pending events")
             return
         }
         
@@ -226,10 +226,10 @@ class EventScheduler: ObservableObject, EventScheduling {
             if let startString = next.start.dateTime,
                let startDate = dateParser.parseDate(from: startString) {
                 let timeUntil = startDate.timeIntervalSince(Date())
-                logger.info("Próximo evento: '\(next.summary ?? "-")' en \(Int(timeUntil/60)) minutos")
+                logger.info("Next event: '\(next.summary ?? "-")' in \(Int(timeUntil/60)) minutes")
             }
         } else {
-            logger.info("No hay más eventos con Meet para hoy")
+            logger.info("No more Meet events for today")
         }
     }
 }

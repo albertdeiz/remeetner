@@ -13,25 +13,25 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Duración del descanso")
+            Text("Break duration")
                 .font(.headline)
 
             Stepper(value: $settings.breakDuration, in: 5...600, step: 5) {
-                Text("\(Int(settings.breakDuration)) segundos")
+                Text("\(Int(settings.breakDuration)) seconds")
             }
 
             Divider()
 
-            Text("Intervalo de sincronización")
+            Text("Sync interval")
                 .font(.headline)
 
             Stepper(value: $settings.eventRefreshIntervalMinutes, in: 1...60, step: 1) {
-                Text("Cada \(settings.eventRefreshIntervalMinutes) min")
+                Text("Every \(settings.eventRefreshIntervalMinutes) min")
             }
 
             Divider()
 
-            Button("Cerrar") {
+            Button("Close") {
                 presentation.wrappedValue.dismiss()
             }
         }

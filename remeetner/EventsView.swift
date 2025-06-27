@@ -16,12 +16,12 @@ struct EventsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Eventos de hoy")
+            Text("Today's events")
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if eventStore.events.isEmpty {
-                Text("No hay eventos.")
+                Text("No events.")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -29,7 +29,7 @@ struct EventsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(eventStore.events, id: \.id) { event in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(event.summary ?? "Sin título")
+                                Text(event.summary ?? "No title")
                                     .bold()
                                 if let start = event.start.dateTime {
                                     Text(formatTime(from: start))
@@ -53,13 +53,13 @@ struct EventsView: View {
 
             Divider()
 
-            Button("Cerrar") {
+            Button("Close") {
                 presentation.wrappedValue.dismiss()
             }
             
             Divider()
             
-            Text("Última sincronización: \(status.lastSyncDate?.formatted(date: .omitted, time: .shortened) ?? "N/A")")
+            Text("Last sync: \(status.lastSyncDate?.formatted(date: .omitted, time: .shortened) ?? "N/A")")
         }
         .padding()
         .frame(width: 300)

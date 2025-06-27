@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Errores específicos de la aplicación Remeetner
+/// Specific errors for the Remeetner application
 enum RemeetnerError: LocalizedError {
     case authenticationFailed
     case eventsFetchFailed
@@ -19,34 +19,34 @@ enum RemeetnerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .authenticationFailed:
-            return "No se pudo autenticar con Google Calendar"
+            return "Could not authenticate with Google Calendar"
         case .eventsFetchFailed:
-            return "No se pudieron cargar los eventos del calendario"
+            return "Could not load calendar events"
         case .dateParsingFailed(let dateString):
-            return "No se pudo procesar la fecha: \(dateString)"
+            return "Could not process date: \(dateString)"
         case .windowCreationFailed:
-            return "No se pudo crear la ventana"
+            return "Could not create window"
         case .googleAPIError(let message):
-            return "Error de Google API: \(message)"
+            return "Google API error: \(message)"
         case .networkError(let error):
-            return "Error de red: \(error.localizedDescription)"
+            return "Network error: \(error.localizedDescription)"
         }
     }
     
     var recoverySuggestion: String? {
         switch self {
         case .authenticationFailed:
-            return "Intenta cerrar sesión y volver a conectar tu cuenta de Google"
+            return "Try signing out and reconnecting your Google account"
         case .eventsFetchFailed:
-            return "Verifica tu conexión a internet y permisos de calendario"
+            return "Check your internet connection and calendar permissions"
         case .dateParsingFailed:
-            return "Contacta al soporte técnico con esta información"
+            return "Contact technical support with this information"
         case .windowCreationFailed:
-            return "Reinicia la aplicación"
+            return "Restart the application"
         case .googleAPIError:
-            return "Verifica tu conexión y permisos de Google Calendar"
+            return "Check your connection and Google Calendar permissions"
         case .networkError:
-            return "Verifica tu conexión a internet"
+            return "Check your internet connection"
         }
     }
 }

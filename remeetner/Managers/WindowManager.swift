@@ -96,7 +96,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManaging {
                 defer: false
             )
             settingsWindow?.contentViewController = hosting
-            settingsWindow?.title = "Configuración"
+            settingsWindow?.title = "Settings"
             settingsWindow?.center()
             settingsWindow?.makeKeyAndOrderFront(nil)
             settingsWindow?.isReleasedWhenClosed = false
@@ -123,7 +123,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManaging {
                 defer: false
             )
             eventsWindow?.contentViewController = hosting
-            eventsWindow?.title = "Eventos del calendario"
+            eventsWindow?.title = "Calendar events"
             eventsWindow?.center()
             eventsWindow?.makeKeyAndOrderFront(nil)
             eventsWindow?.isReleasedWhenClosed = false
