@@ -24,8 +24,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var secondsRemaining: Int = 0
 
     var eventRefreshTimer: Timer?
+    var eventPrecisionTimer: Timer? // Timer para verificar próximo evento cada segundo
     var futureEvents: [CalendarEvent] = []
     var triggeredEventIDs: Set<String> = []
+
+    // Variable para trackear el próximo evento
+    var nextEvent: CalendarEvent?
 
     let eventStore = EventStore()
 
@@ -62,7 +66,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     self?.fetchAndTrackEvents()
                 } else {
                     self?.eventRefreshTimer?.invalidate()
+                    self?.eventPrecisionTimer?.invalidate()
                     self?.futureEvents = []
+                    self?.nextEvent = nil
                 }
             }
             .store(in: &cancellables)
@@ -239,29 +245,89 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func checkUpcomingEvents() {
+    func startPrecisionTimer() {
+        eventPrecisionTimer?.invalidate()
+
+        // Solo iniciar si hay eventos futuros
+        guard !futureEvents.isEmpty else {
+            print("⏱️ No hay eventos futuros, timer de precisión pausado")
+            return
+        }
+
+        print("⏱️ Timer de precisión iniciado (cada segundo)")
+        eventPrecisionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkNextEventTiming()
+        }
+    }
+
+    func stopPrecisionTimer() {
+        eventPrecisionTimer?.invalidate()
+        eventPrecisionTimer = nil
+        nextEvent = nil
+        print("⏱️ Timer de precisión detenido")
+    }
+
+    func findNextEvent() -> CalendarEvent? {
+        let now = Date()
+
+        return futureEvents
+            .filter { event in
+                // Solo eventos con enlace de Meet/Hangouts
+                guard let startString = event.start.dateTime,
+                      let startDate = ISO8601DateFormatter().date(from: startString),
+                      let _ = event.hangoutLink else { return false }
+
+                // Solo eventos futuros que no han sido activados
+                return startDate > now && !triggeredEventIDs.contains(event.id)
+            }
+            .sorted { event1, event2 in
+                // Ordenar por fecha de inicio
+                guard let start1 = event1.start.dateTime,
+                      let start2 = event2.start.dateTime,
+                      let date1 = ISO8601DateFormatter().date(from: start1),
+                      let date2 = ISO8601DateFormatter().date(from: start2) else { return false }
+
+                return date1 < date2
+            }
+            .first
+    }
+
+    func checkNextEventTiming() {
         guard overlayWindow == nil else { return }
 
-        let now = Date()
-        let calendar = Calendar.current
-
-        for event in futureEvents {
-            guard let startString = event.start.dateTime,
-                  let startDate = ISO8601DateFormatter().date(from: startString),
-                  let _ = event.hangoutLink else { continue }
-
-            let id = event.id
-            guard !triggeredEventIDs.contains(id) else { continue }
-
-            let timeInterval = startDate.timeIntervalSince(now)
-
-            if timeInterval > 0 && timeInterval <= 60 {
-                print("✅ Mostrando overlay para evento '\(event.summary ?? "-")' (comienza en \(Int(timeInterval))s)")
-                triggeredEventIDs.insert(id)
-                showOverlay()
-                break
-            }
+        // Buscar el próximo evento si no tenemos uno o si el actual ya pasó
+        if nextEvent == nil || hasEventPassed(nextEvent) {
+            nextEvent = findNextEvent()
         }
+
+        guard let event = nextEvent,
+              let startString = event.start.dateTime,
+              let startDate = ISO8601DateFormatter().date(from: startString) else {
+            // No hay próximo evento, detener timer de precisión
+            stopPrecisionTimer()
+            return
+        }
+
+        let now = Date()
+        let timeUntilEvent = startDate.timeIntervalSince(now)
+
+        // Activar overlay cuando falten 5 segundos o menos y sea positivo
+        if timeUntilEvent <= 5 && timeUntilEvent > -5 {
+            print("✅ Activando overlay para '\(event.summary ?? "-")' (T-\(Int(timeUntilEvent))s)")
+            triggeredEventIDs.insert(event.id)
+            showOverlay()
+
+            // Marcar como procesado y buscar siguiente
+            nextEvent = nil
+        }
+    }
+
+    func hasEventPassed(_ event: CalendarEvent?) -> Bool {
+        guard let event = event,
+              let startString = event.start.dateTime,
+              let startDate = ISO8601DateFormatter().date(from: startString) else { return true }
+
+        return startDate < Date()
     }
 
     func fetchAndTrackEvents() {
@@ -275,8 +341,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.triggeredEventIDs.removeAll()
 
                 self?.statusModel.lastSyncDate = Date()
-                self?.checkUpcomingEvents()
+                
+                // Iniciar o reiniciar el timer de precisión
+                self?.startPrecisionTimer()
+                
+                // Mostrar información sobre próximos eventos
+                self?.logUpcomingEvents()
             }
+        }
+    }
+
+    func logUpcomingEvents() {
+        guard !futureEvents.isEmpty else { 
+            print("📭 No hay eventos pendientes")
+            return 
+        }
+        
+        if let next = findNextEvent() {
+            if let startString = next.start.dateTime,
+               let startDate = ISO8601DateFormatter().date(from: startString) {
+                let timeUntil = startDate.timeIntervalSince(Date())
+                print("📅 Próximo evento: '\(next.summary ?? "-")' en \(Int(timeUntil/60)) minutos")
+            }
+        } else {
+            print("📭 No hay más eventos con Meet para hoy")
         }
     }
 
