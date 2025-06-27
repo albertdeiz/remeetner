@@ -9,13 +9,6 @@ import SwiftUI
 import AppKit
 import Combine
 
-class SettingsModel: ObservableObject {
-    @Published var breakDuration: TimeInterval = 10
-    @Published var minutesBeforeMeet: Int = 2
-    @Published var eventCheckIntervalMinutes: Int = 1
-    @Published var eventRefreshIntervalMinutes: Int = 5
-}
-
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusItem: NSStatusItem!
     var overlayWindow: NSWindow?
@@ -25,16 +18,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var cancellables: Set<AnyCancellable> = []
 
     var settingsModel = SettingsModel()
+    var statusModel = AppStatusModel()
+
     var overlayTimer: Timer?
     var secondsRemaining: Int = 0
 
     var eventCheckTimer: Timer?
     var eventRefreshTimer: Timer?
     var futureEvents: [CalendarEvent] = []
+    var triggeredEventIDs: Set<String> = []
 
     let eventStore = EventStore()
-    
-    var isFetchingEvents = false
 
     func application(_ app: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -152,6 +146,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(NSMenuItem(title: "Activar descanso", action: #selector(showOverlay), keyEquivalent: "b"))
 
         if isAuthenticated {
+            if let last = statusModel.lastSyncDate {
+                let formatted = DateFormatter.localizedString(from: last, dateStyle: .none, timeStyle: .short)
+                menu.addItem(NSMenuItem(title: "Última sincronización: \(formatted)", action: nil, keyEquivalent: ""))
+            }
+
+            menu.addItem(NSMenuItem.separator())
             menu.addItem(NSMenuItem(title: "Eventos del calendario", action: #selector(openCalendarEvents), keyEquivalent: "e"))
             menu.addItem(NSMenuItem(title: "Configuración", action: #selector(openSettings), keyEquivalent: ","))
             menu.addItem(NSMenuItem(title: "Cerrar sesión", action: #selector(logout), keyEquivalent: "l"))
@@ -221,6 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if eventsWindow == nil {
             let eventsView = EventsView()
                 .environmentObject(eventStore)
+                .environmentObject(statusModel)
 
             let hosting = NSHostingController(rootView: eventsView)
 
@@ -253,17 +254,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func startRefreshingEvents(every intervalMinutes: Int) {
-        eventRefreshTimer?.invalidate()
-        eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
-            self?.fetchAndTrackEvents()
-        }
-    }
-    
     func startCheckingForUpcomingMeetEvents(every intervalMinutes: Int) {
         eventCheckTimer?.invalidate()
         eventCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
             self?.checkUpcomingEvents()
+        }
+    }
+
+    func startRefreshingEvents(every intervalMinutes: Int) {
+        eventRefreshTimer?.invalidate()
+        eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
+            print("🔁 Refrescando eventos desde Google Calendar...")
+            self?.fetchAndTrackEvents()
         }
     }
 
@@ -278,10 +280,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                   let startDate = ISO8601DateFormatter().date(from: startString),
                   let _ = event.hangoutLink else { continue }
 
-            let timeUntilStart = startDate.timeIntervalSince(now)
+            let id = event.id
 
-            if timeUntilStart > 0 && timeUntilStart <= TimeInterval(leadTime) {
-                print("Iniciando descanso para Meet que comienza en \(Int(timeUntilStart)) segundos")
+            guard !triggeredEventIDs.contains(id) else { continue }
+
+            let expectedBreakTime = startDate.addingTimeInterval(-TimeInterval(leadTime))
+            let delta = now.timeIntervalSince(expectedBreakTime)
+
+            if abs(delta) <= 30 {
+                print("🕒 Iniciando descanso: \(Int(delta))s de diferencia respecto al tiempo esperado")
+                triggeredEventIDs.insert(id)
                 showOverlay()
                 break
             }
@@ -289,19 +297,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func fetchAndTrackEvents() {
-        guard !isFetchingEvents else { return }
-        isFetchingEvents = true
-        
         GoogleOAuthManager.shared.fetchTodayEvents { [weak self] events in
             DispatchQueue.main.async {
                 print("Eventos cargados:", events?.count ?? 0)
                 events?.forEach { print("•", $0.summary ?? "(sin título)") }
-                
-                self?.isFetchingEvents = false
 
                 self?.eventStore.events = events ?? []
                 self?.futureEvents = events ?? []
+                self?.triggeredEventIDs.removeAll()
 
+                self?.statusModel.lastSyncDate = Date()
                 self?.startCheckingForUpcomingMeetEvents(every: self?.settingsModel.eventCheckIntervalMinutes ?? 1)
                 self?.startRefreshingEvents(every: self?.settingsModel.eventRefreshIntervalMinutes ?? 5)
             }

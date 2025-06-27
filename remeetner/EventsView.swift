@@ -11,6 +11,8 @@ struct EventsView: View {
     @Environment(\.presentationMode) var presentation
 
     @EnvironmentObject var eventStore: EventStore
+    
+    @EnvironmentObject var status: AppStatusModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -54,6 +56,10 @@ struct EventsView: View {
             Button("Cerrar") {
                 presentation.wrappedValue.dismiss()
             }
+            
+            Divider()
+            
+            Text("Última sincronización: \(status.lastSyncDate?.formatted(date: .omitted, time: .shortened) ?? "N/A")")
         }
         .padding()
         .frame(width: 300)
