@@ -30,15 +30,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // Variable para trackear el próximo evento
     var nextEvent: CalendarEvent?
+    
+    // Variables para precisión de timing
+    private var lastCheckTime: Date = Date()
+    private var eventTimeToleranceSeconds: TimeInterval = 0.5
 
     let eventStore = EventStore()
     
     // Formatter configurado para manejar correctamente las fechas de Google Calendar
     private lazy var dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
-        // Google Calendar puede enviar fechas con diferentes formatos
-        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
-        // Importante: No forzar zona horaria, dejar que interprete la que viene en el string
+        // Configuración para máxima precisión con Google Calendar
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
@@ -263,10 +266,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
-        print("⏱️ Timer de precisión iniciado (cada segundo)")
-        eventPrecisionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        print("⏱️ Timer de precisión iniciado (cada 0.1 segundos)")
+        eventPrecisionTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.checkNextEventTiming()
         }
+        
+        // Agregar al RunLoop con alta prioridad para máxima precisión
+        RunLoop.main.add(eventPrecisionTimer!, forMode: .common)
     }
 
     func stopPrecisionTimer() {
@@ -320,24 +326,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let now = Date()
         let timeUntilEvent = startDate.timeIntervalSince(now)
         
-        // Debug: Mostrar timing detallado
+        // Debug: Mostrar timing detallado con milisegundos
         let currentFormatter = DateFormatter()
-        currentFormatter.dateFormat = "HH:mm:ss"
+        currentFormatter.dateFormat = "HH:mm:ss.SSS"
         let eventFormatter = DateFormatter()
-        eventFormatter.dateFormat = "HH:mm:ss"
+        eventFormatter.dateFormat = "HH:mm:ss.SSS"
         
         let currentTime = currentFormatter.string(from: now)
         let eventTime = eventFormatter.string(from: startDate)
         
-        // Solo imprimir cada 10 segundos para no saturar los logs
-        if Int(timeUntilEvent) % 10 == 0 || timeUntilEvent <= 10 {
-            print("🕐 Debug timing - Actual: \(currentTime), Evento: \(eventTime), Diferencia: \(Int(timeUntilEvent))s")
+        // Solo imprimir cada segundo cuando faltan menos de 10 segundos
+        if timeUntilEvent <= 10 && Int(timeUntilEvent * 10) % 10 == 0 {
+            print("🕐 Debug timing - Actual: \(currentTime), Evento: \(eventTime), Diferencia: \(String(format: "%.1f", timeUntilEvent))s")
         }
 
-        // Activar overlay cuando falten 5 segundos o menos y sea positivo
-        if timeUntilEvent <= 5 && timeUntilEvent > -5 {
-            print("✅ Activando overlay para '\(event.summary ?? "-")' (T-\(Int(timeUntilEvent))s)")
+        // Activar overlay con tolerancia inteligente
+        // Si estamos dentro del rango de tolerancia del evento
+        if timeUntilEvent <= eventTimeToleranceSeconds && timeUntilEvent >= -eventTimeToleranceSeconds {
+            print("✅ Activando overlay para '\(event.summary ?? "-")' (T-\(String(format: "%.1f", timeUntilEvent))s)")
             print("🕐 Tiempo actual: \(currentTime), Tiempo evento: \(eventTime)")
+            print("🎯 Activación con tolerancia de ±\(eventTimeToleranceSeconds)s")
             triggeredEventIDs.insert(event.id)
             showOverlay()
 
@@ -416,6 +424,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             print("📭 No hay más eventos con Meet para hoy")
         }
+    }
+    
+    // Función para ajustar la tolerancia de timing si es necesario
+    func adjustEventTimeTolerance(_ seconds: TimeInterval) {
+        eventTimeToleranceSeconds = max(0.1, min(2.0, seconds)) // Entre 0.1 y 2 segundos
+        print("⚙️ Tolerancia de timing ajustada a ±\(eventTimeToleranceSeconds)s")
     }
 
     @objc func quit() {
