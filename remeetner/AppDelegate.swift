@@ -37,13 +37,62 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     let eventStore = EventStore()
     
-    // Formatter configurado para manejar correctamente las fechas de Google Calendar
-    private lazy var dateFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        // Configuración para máxima precisión con Google Calendar
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
+    // Formatters configurados para manejar correctamente las fechas de Google Calendar
+    private lazy var dateFormatters: [ISO8601DateFormatter] = {
+        var formatters: [ISO8601DateFormatter] = []
+        
+        // Formatter 1: Con fracciones de segundo
+        let formatter1 = ISO8601DateFormatter()
+        formatter1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatters.append(formatter1)
+        
+        // Formatter 2: Sin fracciones de segundo
+        let formatter2 = ISO8601DateFormatter()
+        formatter2.formatOptions = [.withInternetDateTime]
+        formatters.append(formatter2)
+        
+        // Formatter 3: Formato más básico
+        let formatter3 = ISO8601DateFormatter()
+        formatter3.formatOptions = [.withFullDate, .withFullTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
+        formatters.append(formatter3)
+        
+        return formatters
     }()
+    
+    // Función para parsear fecha con múltiples intentos
+    private func parseDate(from dateString: String) -> Date? {
+        // Intentar con cada formatter
+        for (index, formatter) in dateFormatters.enumerated() {
+            if let date = formatter.date(from: dateString) {
+                // Solo imprimir en debug si es necesario
+                if dateString.contains("debug") {
+                    print("✅ Fecha parseada con formatter \(index + 1)")
+                }
+                return date
+            }
+        }
+        
+        // Si ninguno funciona, intentar con DateFormatter como último recurso
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        fallbackFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        if let date = fallbackFormatter.date(from: dateString) {
+            print("✅ Fecha parseada con DateFormatter fallback (formato Z)")
+            return date
+        }
+        
+        // Intentar sin zona horaria
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let date = fallbackFormatter.date(from: dateString) {
+            print("✅ Fecha parseada con DateFormatter fallback (sin zona horaria)")
+            return date
+        }
+        
+        // Último intento: formato más básico
+        fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return fallbackFormatter.date(from: dateString)
+    }
 
     func application(_ app: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -289,7 +338,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .filter { event in
                 // Solo eventos con enlace de Meet/Hangouts
                 guard let startString = event.start.dateTime,
-                      let startDate = dateFormatter.date(from: startString),
+                      let startDate = parseDate(from: startString),
                       let _ = event.hangoutLink else { return false }
 
                 // Solo eventos futuros que no han sido activados
@@ -299,8 +348,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 // Ordenar por fecha de inicio
                 guard let start1 = event1.start.dateTime,
                       let start2 = event2.start.dateTime,
-                      let date1 = dateFormatter.date(from: start1),
-                      let date2 = dateFormatter.date(from: start2) else { return false }
+                      let date1 = parseDate(from: start1),
+                      let date2 = parseDate(from: start2) else { return false }
 
                 return date1 < date2
             }
@@ -317,7 +366,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let event = nextEvent,
               let startString = event.start.dateTime,
-              let startDate = dateFormatter.date(from: startString) else {
+              let startDate = parseDate(from: startString) else {
             // No hay próximo evento, detener timer de precisión
             stopPrecisionTimer()
             return
@@ -357,7 +406,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func hasEventPassed(_ event: CalendarEvent?) -> Bool {
         guard let event = event,
               let startString = event.start.dateTime,
-              let startDate = dateFormatter.date(from: startString) else { return true }
+              let startDate = parseDate(from: startString) else { return true }
 
         return startDate < Date()
     }
@@ -393,7 +442,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 print("📅 Evento: '\(event.summary ?? "-")'")
                 print("   📝 String original: '\(dateTimeString)'")
                 
-                if let parsedDate = dateFormatter.date(from: dateTimeString) {
+                if let parsedDate = parseDate(from: dateTimeString) {
                     let debugFormatter = DateFormatter()
                     debugFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss z"
                     print("   ✅ Fecha parseada: \(debugFormatter.string(from: parsedDate))")
@@ -402,6 +451,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     print("   ⏱️ Diferencia con ahora: \(Int(timeInterval)) segundos")
                 } else {
                     print("   ❌ ERROR: No se pudo parsear la fecha")
+                    print("   🔍 Probando diferentes formatos...")
+                    
+                    // Mostrar qué formatos intentamos
+                    for (index, formatter) in dateFormatters.enumerated() {
+                        print("   📝 Formato \(index + 1): \(formatter.formatOptions)")
+                    }
                 }
                 print("")
             }
@@ -417,7 +472,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         if let next = findNextEvent() {
             if let startString = next.start.dateTime,
-               let startDate = dateFormatter.date(from: startString) {
+               let startDate = parseDate(from: startString) {
                 let timeUntil = startDate.timeIntervalSince(Date())
                 print("📅 Próximo evento: '\(next.summary ?? "-")' en \(Int(timeUntil/60)) minutos")
             }
