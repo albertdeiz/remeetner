@@ -10,7 +10,6 @@ import Combine
 
 class SettingsModel: ObservableObject {
     @Published var breakDuration: TimeInterval = 10
-    @Published var minutesBeforeMeet: Int = 2
     @Published var eventCheckIntervalMinutes: Int = 1
     @Published var eventRefreshIntervalMinutes: Int = 5
 }

@@ -22,15 +22,6 @@ struct SettingsView: View {
 
             Divider()
 
-            Text("Minutos antes del Meet")
-                .font(.headline)
-
-            Stepper(value: $settings.minutesBeforeMeet, in: 1...30, step: 1) {
-                Text("\(settings.minutesBeforeMeet) min antes")
-            }
-
-            Divider()
-
             Text("Intervalo de verificación")
                 .font(.headline)
 

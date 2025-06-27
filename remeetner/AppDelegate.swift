@@ -41,13 +41,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        let menu = NSMenu()
-        statusItem.menu = menu
+        statusItem.menu = NSMenu()
 
         updateStatusButton()
         updateMenuItems()
-        
+
         settingsModel.$eventCheckIntervalMinutes
             .sink { [weak self] newValue in
                 guard GoogleOAuthManager.shared.isAuthenticated else { return }
@@ -70,6 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 if isAuthenticated {
                     self?.fetchAndTrackEvents()
+                    self?.checkUpcomingEvents()
                 } else {
                     self?.eventCheckTimer?.invalidate()
                     self?.eventRefreshTimer?.invalidate()
@@ -86,11 +85,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         GoogleOAuthManager.shared.startAuthorization(presentingWindow: window) { success in
-            if success {
-                print("Autenticación exitosa.")
-            } else {
-                print("Falló la autenticación.")
-            }
+            print(success ? "✅ Autenticación exitosa." : "❌ Falló la autenticación.")
         }
     }
 
@@ -119,7 +114,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         overlayTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
-
             if self.secondsRemaining > 1 {
                 self.secondsRemaining -= 1
                 self.updateOverlayView()
@@ -131,9 +125,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func updateStatusButton() {
         guard let button = statusItem.button else { return }
-
         let isAuthenticated = GoogleOAuthManager.shared.isAuthenticated
-
         button.image = NSImage(systemSymbolName: isAuthenticated ? "checkmark.circle.fill" : "moon.zzz.fill", accessibilityDescription: "remeetner")
     }
 
@@ -142,7 +134,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let menu = statusItem.menu else { return }
 
         menu.removeAllItems()
-
         menu.addItem(NSMenuItem(title: "Activar descanso", action: #selector(showOverlay), keyEquivalent: "b"))
 
         if isAuthenticated {
@@ -164,7 +155,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func updateOverlayView() {
-        guard let overlayWindow = overlayWindow else { return }
+        guard let overlayWindow else { return }
 
         let view = OverlayView(
             secondsRemaining: secondsRemaining,
@@ -244,18 +235,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         if let window = notification.object as? NSWindow {
-            if window == overlayWindow {
-                overlayWindow = nil
-            } else if window == eventsWindow {
-                eventsWindow = nil
-            } else if window == settingsWindow {
-                settingsWindow = nil
-            }
+            if window == overlayWindow { overlayWindow = nil }
+            else if window == eventsWindow { eventsWindow = nil }
+            else if window == settingsWindow { settingsWindow = nil }
         }
     }
 
     func startCheckingForUpcomingMeetEvents(every intervalMinutes: Int) {
         eventCheckTimer?.invalidate()
+        print("⏱️ Timer: chequeo de eventos cada \(intervalMinutes) min")
         eventCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
             self?.checkUpcomingEvents()
         }
@@ -263,8 +251,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func startRefreshingEvents(every intervalMinutes: Int) {
         eventRefreshTimer?.invalidate()
+        print("🔁 Timer: refresco de eventos cada \(intervalMinutes) min")
         eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
-            print("🔁 Refrescando eventos desde Google Calendar...")
             self?.fetchAndTrackEvents()
         }
     }
@@ -273,7 +261,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard overlayWindow == nil else { return }
 
         let now = Date()
-        let leadTime = settingsModel.minutesBeforeMeet * 60
+        let calendar = Calendar.current
 
         for event in futureEvents {
             guard let startString = event.start.dateTime,
@@ -281,14 +269,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                   let _ = event.hangoutLink else { continue }
 
             let id = event.id
-
             guard !triggeredEventIDs.contains(id) else { continue }
 
-            let expectedBreakTime = startDate.addingTimeInterval(-TimeInterval(leadTime))
-            let delta = now.timeIntervalSince(expectedBreakTime)
-
-            if abs(delta) <= 30 {
-                print("🕒 Iniciando descanso: \(Int(delta))s de diferencia respecto al tiempo esperado")
+            // Calcular diferencia en segundos
+            let timeInterval = startDate.timeIntervalSince(now)
+            
+            // Activar overlay si el evento está en los próximos 60 segundos (1 minuto)
+            if timeInterval > 0 && timeInterval <= 60 {
+                print("✅ Mostrando overlay para evento '\(event.summary ?? "-")' (comienza en \(Int(timeInterval))s)")
                 triggeredEventIDs.insert(id)
                 showOverlay()
                 break
@@ -299,7 +287,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func fetchAndTrackEvents() {
         GoogleOAuthManager.shared.fetchTodayEvents { [weak self] events in
             DispatchQueue.main.async {
-                print("Eventos cargados:", events?.count ?? 0)
+                print("📆 Eventos cargados:", events?.count ?? 0)
                 events?.forEach { print("•", $0.summary ?? "(sin título)") }
 
                 self?.eventStore.events = events ?? []
@@ -307,8 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.triggeredEventIDs.removeAll()
 
                 self?.statusModel.lastSyncDate = Date()
-                self?.startCheckingForUpcomingMeetEvents(every: self?.settingsModel.eventCheckIntervalMinutes ?? 1)
-                self?.startRefreshingEvents(every: self?.settingsModel.eventRefreshIntervalMinutes ?? 5)
+                self?.checkUpcomingEvents() // Forzar chequeo inmediato
             }
         }
     }
