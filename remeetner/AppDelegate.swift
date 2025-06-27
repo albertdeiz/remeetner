@@ -32,6 +32,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var nextEvent: CalendarEvent?
 
     let eventStore = EventStore()
+    
+    // Formatter configurado para manejar correctamente las fechas de Google Calendar
+    private lazy var dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        // Google Calendar puede enviar fechas con diferentes formatos
+        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
+        // Importante: No forzar zona horaria, dejar que interprete la que viene en el string
+        return formatter
+    }()
 
     func application(_ app: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -274,7 +283,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .filter { event in
                 // Solo eventos con enlace de Meet/Hangouts
                 guard let startString = event.start.dateTime,
-                      let startDate = ISO8601DateFormatter().date(from: startString),
+                      let startDate = dateFormatter.date(from: startString),
                       let _ = event.hangoutLink else { return false }
 
                 // Solo eventos futuros que no han sido activados
@@ -284,8 +293,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 // Ordenar por fecha de inicio
                 guard let start1 = event1.start.dateTime,
                       let start2 = event2.start.dateTime,
-                      let date1 = ISO8601DateFormatter().date(from: start1),
-                      let date2 = ISO8601DateFormatter().date(from: start2) else { return false }
+                      let date1 = dateFormatter.date(from: start1),
+                      let date2 = dateFormatter.date(from: start2) else { return false }
 
                 return date1 < date2
             }
@@ -302,7 +311,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let event = nextEvent,
               let startString = event.start.dateTime,
-              let startDate = ISO8601DateFormatter().date(from: startString) else {
+              let startDate = dateFormatter.date(from: startString) else {
             // No hay próximo evento, detener timer de precisión
             stopPrecisionTimer()
             return
@@ -310,10 +319,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let now = Date()
         let timeUntilEvent = startDate.timeIntervalSince(now)
+        
+        // Debug: Mostrar timing detallado
+        let currentFormatter = DateFormatter()
+        currentFormatter.dateFormat = "HH:mm:ss"
+        let eventFormatter = DateFormatter()
+        eventFormatter.dateFormat = "HH:mm:ss"
+        
+        let currentTime = currentFormatter.string(from: now)
+        let eventTime = eventFormatter.string(from: startDate)
+        
+        // Solo imprimir cada 10 segundos para no saturar los logs
+        if Int(timeUntilEvent) % 10 == 0 || timeUntilEvent <= 10 {
+            print("🕐 Debug timing - Actual: \(currentTime), Evento: \(eventTime), Diferencia: \(Int(timeUntilEvent))s")
+        }
 
         // Activar overlay cuando falten 5 segundos o menos y sea positivo
         if timeUntilEvent <= 5 && timeUntilEvent > -5 {
             print("✅ Activando overlay para '\(event.summary ?? "-")' (T-\(Int(timeUntilEvent))s)")
+            print("🕐 Tiempo actual: \(currentTime), Tiempo evento: \(eventTime)")
             triggeredEventIDs.insert(event.id)
             showOverlay()
 
@@ -325,7 +349,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func hasEventPassed(_ event: CalendarEvent?) -> Bool {
         guard let event = event,
               let startString = event.start.dateTime,
-              let startDate = ISO8601DateFormatter().date(from: startString) else { return true }
+              let startDate = dateFormatter.date(from: startString) else { return true }
 
         return startDate < Date()
     }
@@ -345,10 +369,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 // Iniciar o reiniciar el timer de precisión
                 self?.startPrecisionTimer()
                 
+                // Debug: Imprimir formatos de fecha para diagnóstico
+                self?.debugEventDates(events ?? [])
+                
                 // Mostrar información sobre próximos eventos
                 self?.logUpcomingEvents()
             }
         }
+    }
+
+    func debugEventDates(_ events: [CalendarEvent]) {
+        print("🔍 === DEBUG: Formatos de fecha de eventos ===")
+        for event in events.prefix(3) { // Solo los primeros 3 para no saturar
+            if let dateTimeString = event.start.dateTime {
+                print("📅 Evento: '\(event.summary ?? "-")'")
+                print("   📝 String original: '\(dateTimeString)'")
+                
+                if let parsedDate = dateFormatter.date(from: dateTimeString) {
+                    let debugFormatter = DateFormatter()
+                    debugFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss z"
+                    print("   ✅ Fecha parseada: \(debugFormatter.string(from: parsedDate))")
+                    
+                    let timeInterval = parsedDate.timeIntervalSince(Date())
+                    print("   ⏱️ Diferencia con ahora: \(Int(timeInterval)) segundos")
+                } else {
+                    print("   ❌ ERROR: No se pudo parsear la fecha")
+                }
+                print("")
+            }
+        }
+        print("🔍 === FIN DEBUG ===")
     }
 
     func logUpcomingEvents() {
@@ -359,7 +409,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         if let next = findNextEvent() {
             if let startString = next.start.dateTime,
-               let startDate = ISO8601DateFormatter().date(from: startString) {
+               let startDate = dateFormatter.date(from: startString) {
                 let timeUntil = startDate.timeIntervalSince(Date())
                 print("📅 Próximo evento: '\(next.summary ?? "-")' en \(Int(timeUntil/60)) minutos")
             }
