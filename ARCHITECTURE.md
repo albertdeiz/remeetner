@@ -64,6 +64,11 @@ Managers (Gestión de funcionalidades específicas)
 - **Responsabilidad**: Configuración centralizada de la aplicación
 - **Ubicación**: `Utils/AppConfiguration.swift`
 
+#### SecureConfiguration
+- **Responsabilidad**: Gestión segura de credenciales y configuraciones sensibles
+- **Patrón**: Secure Configuration Management
+- **Ubicación**: `Utils/SecureConfiguration.swift`
+
 #### RemeetnerError
 - **Responsabilidad**: Manejo de errores específicos de la aplicación
 - **Ubicación**: `Utils/RemeetnerError.swift`
@@ -94,6 +99,41 @@ Managers (Gestión de funcionalidades específicas)
 - Uso de Combine para comunicación reactiva
 - Publishers y subscribers para actualizaciones de estado
 
+### 6. Secure Configuration Management
+- Separación de credenciales del código fuente
+- Configuraciones específicas por entorno
+- Validación de configuraciones requeridas
+- Fallback mechanisms para configuraciones faltantes
+
+## Arquitectura de Seguridad
+
+### Gestión de Credenciales
+
+```
+SecureConfiguration (Gestión central)
+    ↓
+GoogleService-Info.plist (Credenciales OAuth)
+    ↓
+AppConfiguration (Interfaz pública)
+    ↓
+GoogleOAuthManager (Uso seguro)
+```
+
+### Principios de Seguridad Aplicados
+
+1. **Separation of Concerns**: Credenciales separadas del código
+2. **Environment Management**: Configuraciones por entorno (dev/staging/prod)
+3. **Version Control Security**: Archivos sensibles excluidos de git
+4. **Validation**: Verificación de configuraciones al inicio
+5. **Fallback Mechanisms**: Manejo graceful de configuraciones faltantes
+
+### Archivos de Configuración
+
+- **GoogleService-Info.plist**: Credenciales OAuth (no en git)
+- **GoogleService-Info.plist.template**: Template para desarrolladores
+- **.gitignore**: Exclusión de archivos sensibles
+- **SecureConfiguration.swift**: Lógica de gestión segura
+
 ## Beneficios de la Nueva Arquitectura
 
 ### 1. Escalabilidad
@@ -116,6 +156,11 @@ Managers (Gestión de funcionalidades específicas)
 ### 5. Debugging
 - Sistema de logging centralizado
 - Diferentes niveles de log según el entorno
+
+### 6. Seguridad
+- Gestión segura de credenciales
+- Separación de configuraciones sensibles
+- Protección contra exposición accidental de secretos
 
 ## Flujo de Datos
 

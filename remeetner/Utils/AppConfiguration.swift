@@ -23,13 +23,13 @@ enum AppConfiguration {
     static let startSoundName = "Glass"
     static let endSoundName = "Ping"
     
-    // MARK: - Google OAuth
-    static let clientID = "1036730212367-j1ekoj4ecgj0rfalkosagrsl9ntbdrrl.apps.googleusercontent.com"
-    static let redirectURIString = "com.albertdeiz.remeetner:/oauthredirect"
-    static let issuerURLString = "https://accounts.google.com"
+    // MARK: - Google OAuth (Using SecureConfiguration)
+    static let clientID = SecureConfiguration.clientID
+    static let redirectURIString = SecureConfiguration.redirectURI
+    static let issuerURLString = SecureConfiguration.issuerURL
     
     // MARK: - API
-    static let calendarAPIBaseURL = "https://www.googleapis.com/calendar/v3"
+    static let calendarAPIBaseURL = SecureConfiguration.Environment.current.apiBaseURL
     
     // MARK: - Debugging
     static let isDebugMode: Bool = {

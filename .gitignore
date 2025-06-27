@@ -1,0 +1,39 @@
+# Xcode
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Secrets and Configuration Files
+GoogleService-Info.plist
+Config.plist
+Secrets.plist
+*.secret
+.env
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Log files
+*.log
+
+# API Keys (if stored in separate files)
+api-keys.json
+credentials.json
+
+# Certificates
+*.p12
+*.mobileprovision

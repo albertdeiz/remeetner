@@ -44,8 +44,15 @@ See your upcoming meetings and their Google Meet status.
 ```bash
 git clone https://github.com/albertdeiz/remeetner.git
 cd remeetner
+
+# Configure Google OAuth (Required for building)
+cp GoogleService-Info.plist.template remeetner/GoogleService-Info.plist
+# Edit GoogleService-Info.plist with your Google OAuth credentials
+
 open remeetner.xcodeproj
 ```
+
+> **⚠️ Important**: You'll need to set up Google OAuth credentials and update the `GoogleService-Info.plist` file with your own client ID and secrets. See [Configuration](#️-configuration) section below.
 
 ### First Setup
 
@@ -55,6 +62,32 @@ open remeetner.xcodeproj
 4. **Configure Settings** - Adjust break duration and refresh intervals
 
 ## ⚙️ Configuration
+
+### Google OAuth Setup (For Developers)
+
+To build the project from source, you'll need to configure Google OAuth:
+
+1. **Create Google OAuth Credentials**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+   - Enable Google Calendar API
+   - Create OAuth 2.0 credentials (macOS application)
+
+2. **Configure the App**:
+   ```bash
+   # Copy the template file
+   cp GoogleService-Info.plist.template remeetner/GoogleService-Info.plist
+   
+   # Edit with your credentials
+   # Replace YOUR_GOOGLE_CLIENT_ID_HERE with your actual client ID
+   # Update bundle ID if needed
+   ```
+
+3. **Security Best Practices**:
+   - The `GoogleService-Info.plist` file is excluded from git (see `.gitignore`)
+   - Secrets are managed through `SecureConfiguration.swift`
+   - Use environment-specific configurations for different builds
+   - Never commit actual credentials to version control
 
 ### Break Settings
 - **Duration**: How long your break reminder lasts (default: 30 seconds)
@@ -95,9 +128,24 @@ remeetner/
 ├── Coordinators/          # App coordination logic
 ├── Managers/              # Feature-specific managers
 ├── Utils/                 # Utilities and helpers
+│   ├── AppConfiguration.swift      # App-wide configuration
+│   ├── SecureConfiguration.swift   # Secure credential management
+│   └── ...
 ├── Views/                 # SwiftUI views
-└── Resources/             # Assets and configurations
+├── Resources/             # Assets and configurations
+├── GoogleService-Info.plist       # Google OAuth credentials (not in git)
+└── GoogleService-Info.plist.template # Template for developers
 ```
+
+### Security Architecture
+
+The app implements Apple's recommended security practices:
+
+- **Secure Configuration Management**: Credentials are stored in separate plist files
+- **Environment Separation**: Different configurations for development/staging/production
+- **Git Security**: Sensitive files are excluded from version control
+- **Validation**: Configuration validation at app startup
+- **Fallback Mechanisms**: Graceful handling of missing configuration files
 
 ### Building
 ```bash

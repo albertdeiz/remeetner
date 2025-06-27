@@ -31,14 +31,14 @@ class GoogleOAuthManager: NSObject {
     @Published private(set) var isAuthenticated: Bool = false
 
     static let shared = GoogleOAuthManager()
-    private let authStateKey = "authState"
+    private let authStateKey = AppConfiguration.StorageKeys.authState
 
     private var currentAuthorizationFlow: OIDExternalUserAgentSession?
     private(set) var authState: OIDAuthState?
 
-    private let clientID = "1036730212367-j1ekoj4ecgj0rfalkosagrsl9ntbdrrl.apps.googleusercontent.com"
-    private let redirectURI = URL(string: "com.albertdeiz.remeetner:/oauthredirect")!
-    private let issuer = URL(string: "https://accounts.google.com")!
+    private let clientID = AppConfiguration.clientID
+    private let redirectURI = URL(string: AppConfiguration.redirectURIString)!
+    private let issuer = URL(string: AppConfiguration.issuerURLString)!
 
     private let scopes = [
         OIDScopeOpenID,
@@ -147,7 +147,7 @@ class GoogleOAuthManager: NSObject {
                 return
             }
             
-            var components = URLComponents(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events")!
+            var components = URLComponents(string: "\(AppConfiguration.calendarAPIBaseURL)/calendars/primary/events")!
 
             let today = Date()
             let currentHour = Calendar.current.component(.hour, from: today)

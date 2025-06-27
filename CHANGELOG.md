@@ -14,18 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Centralized configuration system
 - Advanced logging with different levels
 - Error handling with typed errors
+- **Secure configuration management system**
+- **Environment-specific configurations (dev/staging/prod)**
+- **Template file for Google OAuth setup**
+- **Git security with .gitignore for sensitive files**
 
 ### Changed
 - Complete refactor of AppDelegate for better separation of concerns
 - Improved event scheduling with precision timing
 - Enhanced date parsing with multiple format support
 - Better window management with centralized control
+- **Migrated OAuth credentials to secure configuration files**
+- **Implemented SecureConfiguration.swift for credential management**
+
+### Security
+- **Separated sensitive configuration from source code**
+- **Added validation for required configuration keys**
+- **Implemented fallback mechanisms for missing configurations**
+- **Excluded GoogleService-Info.plist from version control**
+- **Added configuration template for developers**
 
 ### Technical
 - Implemented Coordinator pattern
 - Added dependency injection
 - Created specialized managers for different responsibilities
 - Improved code organization and modularity
+- **Enhanced configuration architecture following Apple's best practices**
+- **Added environment detection and API endpoint management**
 
 ## [1.0.0] - 2025-06-27
 
