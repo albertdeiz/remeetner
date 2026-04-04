@@ -41,7 +41,7 @@ struct OverlayView: View {
                 .foregroundColor(.white.opacity(0.6))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
+        .background(Color.black.opacity(AppConfiguration.overlayOpacity))
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()

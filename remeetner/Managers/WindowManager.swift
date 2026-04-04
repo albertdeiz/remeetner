@@ -35,21 +35,24 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManaging {
     func showOverlay(duration: TimeInterval, onTap: @escaping () -> Void) {
         guard overlayWindow == nil else { return }
         guard let screenFrame = NSScreen.main?.frame else { return }
-        
-        overlayWindow = NSWindow(
+
+        let panel = NSPanel(
             contentRect: screenFrame,
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        overlayWindow?.level = .screenSaver
-        overlayWindow?.backgroundColor = NSColor.black.withAlphaComponent(AppConfiguration.overlayOpacity)
-        overlayWindow?.isOpaque = false
-        overlayWindow?.ignoresMouseEvents = false
-        overlayWindow?.delegate = self
-        overlayWindow?.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        overlayWindow?.makeKeyAndOrderFront(nil)
-        
+        panel.level = .screenSaver
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = false
+        panel.hidesOnDeactivate = false
+        panel.delegate = self
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        panel.orderFrontRegardless()
+
+        overlayWindow = panel
         updateOverlayView(secondsRemaining: Int(duration), totalDuration: Int(duration), onTap: onTap)
     }
     
