@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version from tag
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          BUILD=$(date +%Y%m%d%H%M)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "BUILD=$BUILD" >> $GITHUB_ENV
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          echo "$GOOGLE_SERVICE_INFO" | base64 --decode > remeetner/GoogleService-Info.plist
+
+      - name: Build & Archive
+        run: |
+          xcodebuild archive \
+            -project remeetner.xcodeproj \
+            -scheme remeetner \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/remeetner.xcarchive \
+            -destination "generic/platform=macOS" \
+            MARKETING_VERSION=$VERSION \
+            CURRENT_PROJECT_VERSION=$BUILD \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export app
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/remeetner.xcarchive \
+            -exportPath $RUNNER_TEMP/export \
+            -exportOptionsPlist ExportOptions.plist
+
+      - name: Create dist folder
+        run: mkdir -p dist
+
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname "remeetner" \
+            -srcfolder "$RUNNER_TEMP/export/remeetner.app" \
+            -ov -format UDZO \
+            "dist/remeetner-$VERSION.dmg"
+
+      - name: Create ZIP
+        run: |
+          ditto -c -k --keepParent \
+            "$RUNNER_TEMP/export/remeetner.app" \
+            "dist/remeetner-$VERSION.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "remeetner v${{ env.VERSION }}"
+          generate_release_notes: true
+          files: |
+            dist/remeetner-${{ env.VERSION }}.dmg
+            dist/remeetner-${{ env.VERSION }}.zip
