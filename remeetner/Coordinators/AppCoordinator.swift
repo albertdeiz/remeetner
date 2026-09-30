@@ -117,6 +117,15 @@ extension AppCoordinator: MenuBarManagerDelegate {
         performGoogleAuth()
     }
     
+    func menuBarManagerDidRequestRetrySync() {
+        eventScheduler.startScheduling()
+    }
+    
+    func menuBarManagerDidRequestReconnect() {
+        menuBarManagerDidRequestLogout()
+        performGoogleAuth()
+    }
+    
     func menuBarManagerDidRequestQuit() {
         NSApp.terminate(nil)
     }

@@ -69,6 +69,7 @@ class EventScheduler: ObservableObject, EventScheduling {
         guard GoogleOAuthManager.shared.isAuthenticated else { return }
         fetchAndTrackEvents()
     }
+
     
     func stopScheduling() {
         stopAllTimers()
@@ -120,6 +121,7 @@ class EventScheduler: ObservableObject, EventScheduling {
     }
     
     private func clearEvents() {
+        statusModel.syncError = nil
         futureEvents = []
         nextEvent = nil
         triggeredEventIDs.removeAll()
@@ -196,22 +198,31 @@ class EventScheduler: ObservableObject, EventScheduling {
     }
     
     private func fetchAndTrackEvents() {
-        GoogleOAuthManager.shared.fetchTodayEvents { [weak self] events in
+        GoogleOAuthManager.shared.fetchTodayEvents { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
-                self.logger.info("Events loaded: \(events?.count ?? 0)")
-                events?.forEach { self.logger.verbose("• \($0.summary ?? "(no title)")") }
-                
-                self.eventStore.events = events ?? []
-                self.futureEvents = events ?? []
-                self.triggeredEventIDs.removeAll()
-                
-                self.statusModel.lastSyncDate = Date()
-                
-                self.startPrecisionTimer()
-                self.dateParser.debugEventDates(events ?? [])
-                self.logUpcomingEvents()
+                switch result {
+                case .success(let events):
+                    self.logger.info("Events loaded: \(events.count)")
+                    events.forEach { self.logger.verbose("• \($0.summary ?? "(no title)")") }
+                    
+                    self.eventStore.events = events
+                    self.futureEvents = events
+                    self.triggeredEventIDs.removeAll()
+                    
+                    self.statusModel.syncError = nil
+                    self.statusModel.lastSyncDate = Date()
+                    
+                    self.startPrecisionTimer()
+                    self.dateParser.debugEventDates(events)
+                    self.logUpcomingEvents()
+                    
+                case .failure(let error):
+                    // Keep the last known events so already-scheduled breaks still fire
+                    self.logger.error("Could not load events: \(error.localizedDescription)")
+                    self.statusModel.syncError = error
+                }
             }
         }
     }

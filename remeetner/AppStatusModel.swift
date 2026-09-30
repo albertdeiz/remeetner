@@ -10,4 +10,5 @@ import Combine
 
 class AppStatusModel: ObservableObject {
     @Published var lastSyncDate: Date?
+    @Published var syncError: RemeetnerError?
 }

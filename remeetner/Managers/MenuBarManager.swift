@@ -45,6 +45,15 @@ class MenuBarManager: ObservableObject {
                 self?.updateMenuItems()
             }
             .store(in: &cancellables)
+
+        // Observe sync errors (e.g. calendar permission missing)
+        statusModel.$syncError
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateStatusButton()
+                self?.updateMenuItems()
+            }
+            .store(in: &cancellables)
         
         updateStatusButton()
         updateMenuItems()
@@ -53,10 +62,16 @@ class MenuBarManager: ObservableObject {
     private func updateStatusButton() {
         guard let button = statusItem?.button else { return }
         let isAuthenticated = GoogleOAuthManager.shared.isAuthenticated
-        button.image = NSImage(
-            systemSymbolName: isAuthenticated ? "checkmark.circle.fill" : "moon.zzz.fill",
-            accessibilityDescription: "remeetner"
-        )
+        let symbolName: String
+        if !isAuthenticated {
+            symbolName = "moon.zzz.fill"
+        } else if statusModel.syncError != nil {
+            symbolName = "exclamationmark.triangle.fill"
+        } else {
+            symbolName = "checkmark.circle.fill"
+        }
+        button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "remeetner")
+        button.toolTip = statusModel.syncError?.errorDescription
     }
     
     private func updateMenuItems() {
@@ -71,6 +86,22 @@ class MenuBarManager: ObservableObject {
         menu.addItem(breakItem)
         
         if isAuthenticated {
+            // Sync error
+            if let syncError = statusModel.syncError {
+                menu.addItem(NSMenuItem(title: "⚠️ \(syncError.errorDescription ?? "Could not load events")", action: nil, keyEquivalent: ""))
+                if let suggestion = syncError.recoverySuggestion {
+                    let suggestionItem = NSMenuItem(title: suggestion, action: nil, keyEquivalent: "")
+                    suggestionItem.isEnabled = false
+                    menu.addItem(suggestionItem)
+                }
+                
+                let fixItem = syncError.requiresReauthentication
+                    ? NSMenuItem(title: "Reconnect Google account", action: #selector(reconnectAction), keyEquivalent: "")
+                    : NSMenuItem(title: "Retry sync", action: #selector(retrySyncAction), keyEquivalent: "r")
+                fixItem.target = self
+                menu.addItem(fixItem)
+            }
+            
             // Last sync
             if let lastSync = statusModel.lastSyncDate {
                 let formatted = DateFormatter.localizedString(from: lastSync, dateStyle: .none, timeStyle: .short)
@@ -130,6 +161,14 @@ class MenuBarManager: ObservableObject {
         delegate?.menuBarManagerDidRequestGoogleAuth()
     }
     
+    @objc private func retrySyncAction() {
+        delegate?.menuBarManagerDidRequestRetrySync()
+    }
+    
+    @objc private func reconnectAction() {
+        delegate?.menuBarManagerDidRequestReconnect()
+    }
+    
     @objc private func quitAction() {
         delegate?.menuBarManagerDidRequestQuit()
     }
@@ -143,5 +182,7 @@ protocol MenuBarManagerDelegate: AnyObject {
     func menuBarManagerDidRequestShowSettings()
     func menuBarManagerDidRequestLogout()
     func menuBarManagerDidRequestGoogleAuth()
+    func menuBarManagerDidRequestRetrySync()
+    func menuBarManagerDidRequestReconnect()
     func menuBarManagerDidRequestQuit()
 }

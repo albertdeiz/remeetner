@@ -20,8 +20,25 @@ struct EventsView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            if let syncError = status.syncError {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(syncError.errorDescription ?? "Could not load events", systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.orange)
+                    if let suggestion = syncError.recoverySuggestion {
+                        Text(suggestion)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(6)
+            }
+
             if eventStore.events.isEmpty {
-                Text("No events.")
+                Text(status.syncError == nil ? "No events." : "Events could not be loaded.")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
